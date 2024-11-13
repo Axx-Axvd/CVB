@@ -1,10 +1,7 @@
-name: Build and Test API
+name: Build and Deploy to Railway
 
 on:
   push:
-    branches:
-      - main
-  pull_request:
     branches:
       - main
 
@@ -13,19 +10,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v2
+      - name: Checkout code
+        uses: actions/checkout@v2
 
-    - name: Set up .NET
-      uses: actions/setup-dotnet@v2
-      with:
-        dotnet-version: '8.0.x'  # Укажите нужную версию .NET SDK
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v2
+        with:
+          dotnet-version: '8.0.x'  # Укажите версию .NET SDK
 
-    - name: Restore dependencies
-      run: dotnet restore ./CVB/CVB.csproj
+      - name: Restore dependencies
+        run: dotnet restore ./CVB/CVB.csproj
 
-    - name: Build
-      run: dotnet build ./CVB/CVB.csproj --configuration Release --no-restore
+      - name: Build
+        run: dotnet build ./CVB/CVB.csproj --configuration Release --no-restore
 
-    - name: Run tests
-      run: dotnet test ./CVB/CVB.csproj --no-build --verbosity normal
+      - name: Test
+        run: dotnet test ./CVB/CVB.csproj --no-build --verbosity normal
