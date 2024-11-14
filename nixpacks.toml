@@ -1,0 +1,8 @@
+[phases.setup]
+dotnet = "8.0" # Укажите нужную версию .NET SDK
+
+[phases.build]
+command = "dotnet publish --no-restore -c Release -o out"
+
+[phases.start]
+command = "./out/CVB" # Замените CVB на имя вашей сборки, если оно другое
