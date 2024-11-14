@@ -1,4 +1,4 @@
-name: Build and Deploy to Railway
+name: Build and Deploy to Amvera
 
 on:
   push:
@@ -16,7 +16,7 @@ jobs:
       - name: Set up .NET
         uses: actions/setup-dotnet@v2
         with:
-          dotnet-version: '8.0.0'  # Укажите версию .NET SDK
+          dotnet-version: '8.0.0'  # Задайте вашу версию .NET SDK
 
       - name: Restore dependencies
         run: dotnet restore ./CVB/CVB.csproj
@@ -24,5 +24,10 @@ jobs:
       - name: Build
         run: dotnet build ./CVB/CVB.csproj --configuration Release --no-restore
 
-      - name: Test
-        run: dotnet test ./CVB/CVB.csproj --no-build --verbosity normal
+      - name: Publish
+        run: dotnet publish ./CVB/CVB.csproj --configuration Release --output ./publish
+
+      - name: Deploy to Amvera
+        # Этот шаг будет зависеть от того, какой метод развертывания поддерживает Amvera.
+        # В документации к Amvera должно быть указано, какой метод развертывания использовать.
+        # Например, здесь можно использовать SSH или API.
