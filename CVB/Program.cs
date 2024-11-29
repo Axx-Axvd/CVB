@@ -1,5 +1,4 @@
 using Microsoft.OpenApi.Models;
-using CVB.Models; // Подключение моделей, если они используются
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,54 +10,57 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowSpecificOrigins", policy =>
     {
-        policy.WithOrigins("http://localhost:3000") // Указываем ваш фронтенд
+        policy.WithOrigins("http://localhost:3000") // Укажите адрес фронтенда
               .AllowAnyMethod()                     // Разрешаем любые HTTP-методы
               .AllowAnyHeader();                   // Разрешаем любые заголовки
     });
 });
 
-// Настраиваем Swagger для документации API
+// Добавляем HttpClient для взаимодействия с внешними API
+builder.Services.AddHttpClient();
+
+// Добавляем Swagger для документации API
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
     {
         Version = "v1",
-        Title = "Notification API",
-        Description = "API для работы с уведомлениями",
+        Title = "Integrated API",
+        Description = "API для работы с уведомлениями и генерацией QR-кодов",
         Contact = new OpenApiContact
         {
             Name = "Your Name",
-            Email = "example@example.com",
-            Url = new Uri("https://github.com/your-profile") // Укажите реальный URL, если нужно
+            Email = "your-email@example.com",
+            Url = new Uri("https://github.com/your-profile") // Укажите реальный URL
         }
     });
 });
 
 var app = builder.Build();
 
-// Применяем CORS
+// Включаем CORS
 app.UseCors("AllowSpecificOrigins");
 
-// Включаем Swagger для тестирования API
+// Включаем Swagger для разработки и продакшена
 if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
 {
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Notification API v1");
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "Integrated API v1");
         c.RoutePrefix = string.Empty; // Открываем Swagger по корневому URL
     });
 }
 
-// Middleware для HTTPS-редиректа
+// Редирект на HTTPS для безопасности
 app.UseHttpsRedirection();
 
-// Авторизация (если используется)
+// Включаем авторизацию (если необходимо)
 app.UseAuthorization();
 
-// Подключение маршрутов контроллеров
+// Подключаем маршруты контроллеров
 app.MapControllers();
 
-// Запуск приложения
+// Запускаем приложение
 app.Run();
