@@ -4,61 +4,49 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace YourNamespace.Controllers
+[ApiController]
+[Route("api/qr")]
+public class QrApiController : ControllerBase
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    public class QrApiController : ControllerBase
+    private readonly HttpClient _httpClient;
+
+    public QrApiController(IHttpClientFactory httpClientFactory)
     {
-        private readonly HttpClient _httpClient;
-
-        public QrApiController()
-        {
-            _httpClient = new HttpClient();
-        }
-
-        // Прокси-метод для генерации QR-кода
-        [HttpPost("proxy-generate-qr")]
-        public async Task<IActionResult> ProxyGenerateQr([FromBody] QrRequest request)
-        {
-            var apiUrl = "http://helpful-orca-worthy.ngrok-free.app/api/GetQr";
-
-            // Сериализуем запрос
-            var content = new StringContent(JsonSerializer.Serialize(new
-            {
-                InputData = request.InputData,
-                BgColor = request.BgColor,
-                FgColor = request.FgColor
-            }), Encoding.UTF8, "application/json");
-
-            try
-            {
-                // Отправляем запрос на API одногруппника
-                var response = await _httpClient.PostAsync(apiUrl, content);
-                var responseContent = await response.Content.ReadAsStringAsync();
-
-                if (!response.IsSuccessStatusCode)
-                {
-                    // Если внешний API возвращает ошибку, передаем ее обратно
-                    return StatusCode((int)response.StatusCode, responseContent);
-                }
-
-                // Возвращаем успешный результат с содержимым ответа
-                return Ok(responseContent);
-            }
-            catch (HttpRequestException ex)
-            {
-                // Обработка ошибок запроса
-                return StatusCode(500, $"Ошибка при обращении к API: {ex.Message}");
-            }
-        }
+        _httpClient = httpClientFactory.CreateClient();
     }
 
-    // Класс для входящих данных запроса
-    public class QrRequest
+    [HttpPost("generate")]
+    public async Task<IActionResult> GenerateQr([FromBody] QrRequest request)
     {
-        public string InputData { get; set; }
-        public string BgColor { get; set; }
-        public string FgColor { get; set; }
+        var externalApiUrl = "http://helpful-orca-worthy.ngrok-free.app/api/GetQr";
+        var content = new StringContent(JsonSerializer.Serialize(new
+        {
+            InputData = request.InputData,
+            BgColor = request.BgColor,
+            FgColor = request.FgColor
+        }), Encoding.UTF8, "application/json");
+
+        try
+        {
+            var response = await _httpClient.PostAsync(externalApiUrl, content);
+            if (!response.IsSuccessStatusCode)
+            {
+                return StatusCode((int)response.StatusCode, await response.Content.ReadAsStringAsync());
+            }
+
+            var qrImage = await response.Content.ReadAsByteArrayAsync();
+            return File(qrImage, "image/png");
+        }
+        catch (HttpRequestException ex)
+        {
+            return StatusCode(500, $"Ошибка при обращении к API: {ex.Message}");
+        }
     }
+}
+
+public class QrRequest
+{
+    public string InputData { get; set; }
+    public string BgColor { get; set; }
+    public string FgColor { get; set; }
 }
