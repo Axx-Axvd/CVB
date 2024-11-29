@@ -15,39 +15,51 @@ public class QrApiController : ControllerBase
         _httpClient = httpClientFactory.CreateClient();
     }
 
-    // POST: api/qr/generate
     [HttpPost("generate")]
     public async Task<IActionResult> GenerateQrCode([FromBody] QrRequest request)
     {
         try
         {
-            // URL API одногруппника
+            // Логируем входящие данные для отладки
+            Console.WriteLine($"Field1: {request.Field1}, Field2: {request.Field2}, Field3: {request.Field3}");
+
+            // Проверяем, что все поля заполнены
+            if (string.IsNullOrEmpty(request.Field1) ||
+                string.IsNullOrEmpty(request.Field2) ||
+                string.IsNullOrEmpty(request.Field3))
+            {
+                return BadRequest("Все поля должны быть заполнены.");
+            }
+
             string qrApiUrl = "http://helpful-orca-worthy.ngrok-free.app/api/GetQr";
 
-            // Создаем содержимое запроса
+            // Формируем запрос к API одногруппника
             var content = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
-
-            // Отправляем запрос к API
             var response = await _httpClient.PostAsync(qrApiUrl, content);
 
             if (!response.IsSuccessStatusCode)
-                return StatusCode((int)response.StatusCode, await response.Content.ReadAsStringAsync());
+            {
+                var errorMessage = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Ошибка от API одногруппника: {errorMessage}");
+                return StatusCode((int)response.StatusCode, errorMessage);
+            }
 
-            // Возвращаем изображение QR-кода
+            // Получаем и возвращаем изображение
             var qrCode = await response.Content.ReadAsStreamAsync();
             return File(qrCode, "image/png");
         }
         catch (HttpRequestException ex)
         {
-            return StatusCode(500, $"Ошибка при запросе к QR API: {ex.Message}");
+            Console.WriteLine($"Ошибка при запросе к API: {ex.Message}");
+            return StatusCode(500, $"Ошибка при запросе к API: {ex.Message}");
         }
     }
 }
 
-// Модель для входящих данных
+// Модель для запроса
 public class QrRequest
 {
-    public string Field1 { get; set; }
-    public string Field2 { get; set; }
-    public string Field3 { get; set; }
+    public string Field1 { get; set; } // Текст для QR-кода
+    public string Field2 { get; set; } // Цвет фона
+    public string Field3 { get; set; } // Цвет кода
 }
