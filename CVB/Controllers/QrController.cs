@@ -20,46 +20,59 @@ public class QrApiController : ControllerBase
     {
         try
         {
-            // Логируем входящие данные для отладки
-            Console.WriteLine($"Field1: {request.Field1}, Field2: {request.Field2}, Field3: {request.Field3}");
-
-            // Проверяем, что все поля заполнены
-            if (string.IsNullOrEmpty(request.Field1) ||
-                string.IsNullOrEmpty(request.Field2) ||
-                string.IsNullOrEmpty(request.Field3))
+            // Проверка входных данных
+            if (string.IsNullOrEmpty(request.InputData) ||
+                string.IsNullOrEmpty(request.BgColor) ||
+                string.IsNullOrEmpty(request.FgColor))
             {
                 return BadRequest("Все поля должны быть заполнены.");
             }
 
             string qrApiUrl = "http://helpful-orca-worthy.ngrok-free.app/api/GetQr";
 
-            // Формируем запрос к API одногруппника
+            // Формируем JSON-запрос
             var content = new StringContent(JsonSerializer.Serialize(request), Encoding.UTF8, "application/json");
+
+            // Отправляем запрос к API одногруппника
             var response = await _httpClient.PostAsync(qrApiUrl, content);
 
             if (!response.IsSuccessStatusCode)
             {
                 var errorMessage = await response.Content.ReadAsStringAsync();
-                Console.WriteLine($"Ошибка от API одногруппника: {errorMessage}");
                 return StatusCode((int)response.StatusCode, errorMessage);
             }
 
-            // Получаем и возвращаем изображение
-            var qrCode = await response.Content.ReadAsStreamAsync();
-            return File(qrCode, "image/png");
+            // Читаем и декодируем ответ
+            var jsonResponse = await response.Content.ReadAsStringAsync();
+            var qrResponse = JsonSerializer.Deserialize<QrResponse>(jsonResponse);
+
+            if (qrResponse == null || string.IsNullOrEmpty(qrResponse.OutputData))
+            {
+                return BadRequest("Ошибка при генерации QR-кода.");
+            }
+
+            // Возвращаем Base64-данные как изображение
+            byte[] imageBytes = Convert.FromBase64String(qrResponse.OutputData);
+            return File(imageBytes, "image/png");
         }
-        catch (HttpRequestException ex)
+        catch (Exception ex)
         {
-            Console.WriteLine($"Ошибка при запросе к API: {ex.Message}");
-            return StatusCode(500, $"Ошибка при запросе к API: {ex.Message}");
+            return StatusCode(500, $"Ошибка: {ex.Message}");
         }
     }
 }
 
-// Модель для запроса
+// Модель для входного запроса
 public class QrRequest
 {
-    public string Field1 { get; set; } // Текст для QR-кода
-    public string Field2 { get; set; } // Цвет фона
-    public string Field3 { get; set; } // Цвет кода
+    public string InputData { get; set; } // Текст для QR-кода
+    public string BgColor { get; set; }   // Цвет фона
+    public string FgColor { get; set; }   // Цвет переднего плана
+}
+
+// Модель для ответа от API
+public class QrResponse
+{
+    public string OutputData { get; set; } // Base64 строка с изображением
+    public string Format { get; set; }    // Формат изображения
 }
