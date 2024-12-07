@@ -2,6 +2,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 // Добавляем контроллеры
 builder.Services.AddControllers();
+builder.Services.AddSwaggerGen();
 
 // Добавляем HttpClient для внешних запросов
 builder.Services.AddHttpClient();

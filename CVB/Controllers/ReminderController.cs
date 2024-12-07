@@ -1,5 +1,7 @@
 ﻿using CVB.Models;
 using Microsoft.AspNetCore.Mvc;
+using MailKit.Net.Smtp;
+using MimeKit;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -7,63 +9,63 @@ using System.Linq;
 [Route("api/[controller]")]
 public class ReminderController : ControllerBase
 {
-    // Пример статической коллекции для хранения напоминаний
     private static List<Reminder> reminders = new List<Reminder>();
+    private int _idCounter = 1; // Для генерации уникальных идентификаторов
 
-    // GET: api/reminder
-    [HttpGet]
-    public ActionResult<IEnumerable<Reminder>> GetAllReminders()
+    // POST: api/reminder/send
+    [HttpPost("send")]
+    public async Task<IActionResult> SendReminder([FromBody] Reminder reminder)
     {
-        return Ok(reminders);
-    }
+        if (string.IsNullOrEmpty(reminder.Message) || string.IsNullOrEmpty(reminder.RecipientEmail))
+        {
+            return BadRequest("Message and RecipientEmail are required.");
+        }
 
-    // GET: api/reminder/{id}
-    [HttpGet("{id}")]
-    public ActionResult<Reminder> GetReminder(int id)
-    {
-        var reminder = reminders.FirstOrDefault(r => r.Id == id);
-        if (reminder == null)
-            return NotFound("Напоминание с таким ID не найдено.");
+        try
+        {
+            // Генерация ID, времени и статуса на сервере
+            reminder.Id = _idCounter++;
+            reminder.ScheduledTime = DateTime.UtcNow; // Устанавливаем текущее время
+            reminder.Status = "Pending"; // Начальный статус
 
-        return Ok(reminder);
-    }
+            // Сохраняем напоминание в памяти
+            reminders.Add(reminder);
 
-    // POST: api/reminder
-    [HttpPost]
-    public ActionResult<Reminder> CreateReminder([FromBody] Reminder reminder)
-    {
-        // Установка уникального идентификатора для нового напоминания
-        reminder.Id = reminders.Count > 0 ? reminders.Max(r => r.Id) + 1 : 1;
-        reminders.Add(reminder);
-        return CreatedAtAction(nameof(GetReminder), new { id = reminder.Id }, reminder);
-    }
+            // Логика отправки почты
+            var emailMessage = new MimeMessage();
+            emailMessage.From.Add(new MailboxAddress("CVB Notifications", "your-email@example.com"));
+            emailMessage.To.Add(new MailboxAddress("", reminder.RecipientEmail));
+            emailMessage.Subject = "New Notification";
+            emailMessage.Body = new TextPart("plain")
+            {
+                Text = reminder.Message
+            };
 
-    // PUT: api/reminder/{id}
-    [HttpPut("{id}")]
-    public IActionResult UpdateReminder(int id, [FromBody] Reminder updatedReminder)
-    {
-        var reminder = reminders.FirstOrDefault(r => r.Id == id);
-        if (reminder == null)
-            return NotFound("Напоминание с таким ID не найдено.");
+            using (var client = new SmtpClient())
+            {
+                await client.ConnectAsync("smtp.gmail.com", 587, MailKit.Security.SecureSocketOptions.StartTls);
+                await client.AuthenticateAsync("your-email@example.com", "your-email-password");
+                await client.SendAsync(emailMessage);
+                await client.DisconnectAsync(true);
+            }
 
-        // Обновление данных напоминания
-        reminder.Message = updatedReminder.Message;
-        reminder.RecipientEmail = updatedReminder.RecipientEmail;
-        reminder.ScheduledTime = updatedReminder.ScheduledTime;
-        reminder.Status = updatedReminder.Status;
+            // Обновляем статус после успешной отправки
+            reminder.Status = "Sent";
 
-        return NoContent();
-    }
-
-    // DELETE: api/reminder/{id}
-    [HttpDelete("{id}")]
-    public IActionResult DeleteReminder(int id)
-    {
-        var reminder = reminders.FirstOrDefault(r => r.Id == id);
-        if (reminder == null)
-            return NotFound("Напоминание с таким ID не найдено.");
-
-        reminders.Remove(reminder);
-        return NoContent();
+            return Ok(new
+            {
+                Status = reminder.Status,
+                Message = "Email has been successfully sent to " + reminder.RecipientEmail
+            });
+        }
+        catch (Exception ex)
+        {
+            reminder.Status = "Failed";
+            return StatusCode(500, new
+            {
+                Status = reminder.Status,
+                ErrorMessage = $"Error sending email: {ex.Message}"
+            });
+        }
     }
 }
