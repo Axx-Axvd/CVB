@@ -26,7 +26,7 @@ public class ReminderController : ControllerBase
             // Генерация ID, времени и статуса на сервере
             reminder.Id = _idCounter++;
             reminder.ScheduledTime = DateTime.UtcNow; // Устанавливаем текущее время
-            reminder.Status = "Pending"; // Начальный статус
+            reminder.Status = "Pending"; 
 
             // Сохраняем напоминание в памяти
             reminders.Add(reminder);
